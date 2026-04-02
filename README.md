@@ -1,5 +1,54 @@
 # Ripples PHP SDK
 
+
+Server-side PHP SDK for [Ripples.sh](https://ripples.sh) analytics.
+
+
+## Install
+
+
+```bash
+composer require ripplesanalytics/ripples-php
+```
+
+
+Add to your `.env`:
+
+
+```
+RIPPLES_SECRET_KEY=priv_your_secret_key
+```
+
+
+## Usage
+
+
+```php
+use Ripples\Ripples;
+
+
+$ripples = new Ripples();
+
+
+$ripples->revenue(49.99, 'user_123');
+$ripples->signup('user_123', ['email' => 'jane@example.com']);
+$ripples->identify('user_123', ['email' => 'jane@example.com']);
+```
+
+
+That's it.
+
+
+## Track revenue
+
+
+```php
+$ripples->revenue(49.99, 'user_123');
+```
+
+
+Any key you pass that isn't a known field becomes a custom property automatically:# Ripples PHP SDK
+
 Server-side PHP SDK for [Ripples.sh](https://ripples.sh) analytics.
 
 ## Install
