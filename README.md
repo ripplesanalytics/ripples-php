@@ -23,10 +23,30 @@ $ripples = new Ripples();
 
 $ripples->revenue(49.99, 'user_123');
 $ripples->signup('user_123', ['email' => 'jane@example.com']);
+$ripples->track('created a budget', 'user_123', ['area' => 'budgets']);
 $ripples->identify('user_123', ['email' => 'jane@example.com']);
 ```
 
 That's it.
+
+## Track product usage
+
+Call `track()` when a user does something meaningful in your product. Ripples auto-detects activation (first occurrence per user), computes adoption rates, and correlates with retention and payment.
+
+```php
+$ripples->track('created a budget', 'user_123', ['area' => 'budgets']);
+$ripples->track('shared a list', 'user_123', ['area' => 'sharing', 'via' => 'link']);
+$ripples->track('exported report', 'user_123', ['area' => 'reports', 'format' => 'csv']);
+```
+
+Use `area` to group actions into product areas. Use `activation => true` to hint that this is an activation milestone:
+
+```php
+$ripples->track('created first budget', 'user_123', [
+    'area'       => 'budgets',
+    'activation' => true,
+]);
+```
 
 ## Track revenue
 
