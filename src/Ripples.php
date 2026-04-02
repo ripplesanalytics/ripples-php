@@ -27,7 +27,7 @@ class Ripples
      */
     public function revenue(float $amount, string $userId, array $attributes = []): array
     {
-        return $this->post('/v1/revenue', ['amount' => $amount, 'user_id' => $userId, ...$attributes]);
+        return $this->post('/v1/ingest/revenue', ['amount' => $amount, 'user_id' => $userId, ...$attributes]);
     }
 
     /**
@@ -37,7 +37,7 @@ class Ripples
      */
     public function signup(string $userId, array $attributes = []): array
     {
-        return $this->post('/v1/signup', ['user_id' => $userId, ...$attributes]);
+        return $this->post('/v1/ingest/signup', ['user_id' => $userId, ...$attributes]);
     }
 
     /**
@@ -47,7 +47,7 @@ class Ripples
      */
     public function identify(string $userId, array $attributes = []): array
     {
-        return $this->post('/v1/identify', ['user_id' => $userId, ...$attributes]);
+        return $this->post('/v1/ingest/identify', ['user_id' => $userId, ...$attributes]);
     }
 
     /**
