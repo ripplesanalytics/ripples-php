@@ -11,7 +11,7 @@ class Ripples
     public function __construct(?string $secretKey = null, array $options = [])
     {
         $this->secretKey = $secretKey ?? getenv('RIPPLES_SECRET_KEY') ?: ($_ENV['RIPPLES_SECRET_KEY'] ?? $_SERVER['RIPPLES_SECRET_KEY'] ?? '');
-        $this->baseUrl = rtrim($options['base_url'] ?? getenv('RIPPLES_URL') ?: 'https://ripples.sh/api', '/');
+        $this->baseUrl = rtrim($options['base_url'] ?? getenv('RIPPLES_URL') ?: 'https://api.ripples.sh', '/');
         $this->timeout = $options['timeout'] ?? 5;
 
         if ($this->secretKey === '') {
