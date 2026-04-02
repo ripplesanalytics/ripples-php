@@ -39,12 +39,13 @@ $ripples->track('shared a list', 'user_123', ['area' => 'sharing', 'via' => 'lin
 $ripples->track('exported report', 'user_123', ['area' => 'reports', 'format' => 'csv']);
 ```
 
-Use `area` to group actions into product areas. Use `activation => true` to hint that this is an activation milestone:
+Use `area` to group actions into product areas. Use `activated => true` to mark the specific moment a user activates — it flags this occurrence, not the event type:
 
 ```php
-$ripples->track('created first budget', 'user_123', [
-    'area'       => 'budgets',
-    'activation' => true,
+// User added their 10th transaction — we consider this their activation moment
+$ripples->track('added transaction', 'user_123', [
+    'area'      => 'transactions',
+    'activated' => true,  // only on THIS occurrence
 ]);
 ```
 

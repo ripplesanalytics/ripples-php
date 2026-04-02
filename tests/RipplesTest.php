@@ -204,12 +204,12 @@ class RipplesTest extends TestCase
         $this->assertSame('budgets', $event['area']);
     }
 
-    public function testTrackWithActivationHint(): void
+    public function testTrackWithActivatedFlag(): void
     {
         $this->ripples->track('shared a list', 'user_42', [
-            'area'       => 'sharing',
-            'activation' => true,
-            'via'        => 'link',
+            'area'      => 'sharing',
+            'activated' => true,
+            'via'       => 'link',
         ]);
         $this->ripples->flush();
 
@@ -217,7 +217,7 @@ class RipplesTest extends TestCase
         $this->assertSame('track', $event['type']);
         $this->assertSame('shared a list', $event['name']);
         $this->assertSame('sharing', $event['area']);
-        $this->assertTrue($event['activation']);
+        $this->assertTrue($event['activated']);
         $this->assertSame('link', $event['via']);
     }
 

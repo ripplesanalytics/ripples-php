@@ -63,7 +63,7 @@ class Ripples
      * computes adoption rates, and correlates with retention/payment.
      *
      * Pass 'area' in attributes to group actions into product areas.
-     * Pass 'activation' => true to hint this is an activation milestone.
+     * Pass 'activated' => true to mark this specific occurrence as the activation moment.
      */
     public function track(string $actionName, string $userId, array $attributes = []): void
     {
