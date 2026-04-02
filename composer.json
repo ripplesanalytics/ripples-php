@@ -1,5 +1,5 @@
 {
-    "name": "ripples/ripples-php",
+    "name": "ripplesanalytics/ripples-php",
     "description": "Official PHP SDK for Ripples.sh — server-side event tracking",
     "keywords": ["ripples", "analytics", "tracking", "revenue", "php"],
     "homepage": "https://ripples.sh",
