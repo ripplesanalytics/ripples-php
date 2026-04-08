@@ -105,7 +105,7 @@ class Ripples
 
     private function enqueue(string $type, array $data): void
     {
-        $this->queue[] = ['type' => $type, ...$data];
+        $this->queue[] = ['type' => $type, 'sent_at' => gmdate('Y-m-d\TH:i:s\Z'), ...$data];
 
         if (\count($this->queue) >= $this->maxQueueSize) {
             $this->flush();
