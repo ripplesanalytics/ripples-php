@@ -71,6 +71,41 @@ class Ripples
     }
 
     /**
+     * Track a subscription state change for MRR calculation.
+     *
+     * Call when a subscription is created, upgraded/downgraded, or canceled.
+     * For Stripe/Paddle users with a native integration, MRR is tracked automatically
+     * — only use this method for other payment providers.
+     *
+     * @param string $subscriptionId  Your subscription ID (must be stable across updates)
+     * @param string $userId          The user who owns the subscription
+     * @param string $status          active, canceled, past_due, trialing, paused
+     * @param float  $amount          Amount per billing cycle (e.g. 29.00), in your currency
+     * @param string $interval        Billing interval: month, year, week, day
+     * @param array  $attributes      Optional: currency, name/plan, interval_count
+     */
+    public function subscription(
+        string $subscriptionId,
+        string $userId,
+        string $status,
+        float $amount,
+        string $interval = 'month',
+        array $attributes = [],
+    ): void {
+        $this->enqueue('revenue', array_filter([
+            'amount' => 0,
+            'user_id' => $userId,
+            'subscription_id' => $subscriptionId,
+            'subscription_status' => $status,
+            'subscription_amount' => (string) round($amount * 100),
+            'billing_interval' => $interval,
+            'billing_interval_count' => (string) ($attributes['interval_count'] ?? 1),
+            'currency' => $attributes['currency'] ?? null,
+            'name' => $attributes['name'] ?? $attributes['plan'] ?? null,
+        ], fn ($v) => $v !== null));
+    }
+
+    /**
      * Identify a user (set or update traits).
      *
      * Any extra keys beyond the known fields become custom properties automatically.

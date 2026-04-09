@@ -49,6 +49,37 @@ $ripples->track('added transaction', 'user_123', [
 ]);
 ```
 
+## Track subscriptions (MRR)
+
+Call `subscription()` when a subscription is created, upgraded, downgraded, or canceled. This powers the MRR metric on your dashboard.
+
+> **Stripe / Paddle users:** MRR is tracked automatically via the integration. Only use this method if you use a payment provider without a native Ripples integration.
+
+```php
+// User subscribes to Pro Monthly ($29/mo)
+$ripples->subscription('sub_123', 'user_456', 'active', 29.00, 'month', [
+    'name' => 'Pro',
+    'currency' => 'EUR',
+]);
+
+// User upgrades to Business Annual ($499/yr)
+$ripples->subscription('sub_123', 'user_456', 'active', 499.00, 'year', [
+    'name' => 'Business',
+]);
+
+// User cancels
+$ripples->subscription('sub_123', 'user_456', 'canceled', 0);
+```
+
+Parameters:
+
+- `subscriptionId` (string, required) — stable identifier for the subscription
+- `userId` (string, required) — your internal user ID
+- `status` (string, required) — one of: `active`, `canceled`, `past_due`, `trialing`, `paused`
+- `amount` (float, required) — amount per billing cycle (e.g. `29.00`), pass `0` when canceling
+- `interval` (string, optional) — `month` (default), `year`, `week`, or `day`
+- `attributes` (array, optional) — `currency`, `name` or `plan`, `interval_count`
+
 ## Track revenue
 
 ```php
