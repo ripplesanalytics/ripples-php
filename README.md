@@ -31,7 +31,7 @@ That's it.
 
 ## Track product usage
 
-Call `track()` when a user does something meaningful in your product. Ripples auto-detects activation (first occurrence per user), computes adoption rates, and correlates with retention and payment.
+Call `track()` **only** for significant product usage — actions that prove a user got real value (created a budget, sent a message, invited a teammate). This is not a generic event log like PostHog or Mixpanel: do **not** send pageviews, banner impressions, button clicks, or "viewed X" events. Every `track()` call feeds the Activation dashboard, so noise here pollutes your funnel. Ripples auto-detects activation (first occurrence per user), computes adoption rates, and correlates with retention and payment.
 
 ```php
 $ripples->track('created a budget', 'user_123', ['area' => 'budgets']);

@@ -57,7 +57,12 @@ class Ripples
     }
 
     /**
-     * Track product usage — signals that a user did something meaningful.
+     * Track significant product usage only — actions that prove a user got real value
+     * (created a budget, sent a message, invited a teammate).
+     *
+     * This is NOT a generic event log like PostHog or Mixpanel. Do not send pageviews,
+     * banner impressions, button clicks, or "viewed X" events. Every track() call feeds
+     * the Activation dashboard — noise pollutes your funnel.
      *
      * Ripples auto-detects activation (first occurrence per user per action),
      * computes adoption rates, and correlates with retention/payment.
