@@ -337,4 +337,87 @@ class RipplesTest extends TestCase
         $r->flush();
         $this->assertSame('signup', $r->batches[0]['data']['events'][0]['type']);
     }
+
+    // ------------------------------------------------------------------
+    // Timestamp override (backfilling historical events)
+    // ------------------------------------------------------------------
+
+    public function testOmittedTimestampUsesNow(): void
+    {
+        $this->ripples->signup('u1');
+        $this->ripples->flush();
+
+        $event = $this->lastEvents()[0];
+        // Format: 2026-04-19T12:34:56Z — UTC, second precision
+        $this->assertMatchesRegularExpression(
+            '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/',
+            $event['$sent_at']
+        );
+        $now = time();
+        $eventTs = strtotime($event['$sent_at']);
+        $this->assertLessThan(5, abs($now - $eventTs));
+    }
+
+    public function testTrackWithDateTimeImmutable(): void
+    {
+        $past = new \DateTimeImmutable('2024-03-15T12:00:00Z');
+        $this->ripples->track('created a budget', 'u1', [], $past);
+        $this->ripples->flush();
+
+        $this->assertSame('2024-03-15T12:00:00Z', $this->lastEvents()[0]['$sent_at']);
+    }
+
+    public function testTrackWithDateTimeInNonUtcZoneIsConvertedToUtc(): void
+    {
+        // 2024-06-01 09:00:00 in Europe/Berlin (UTC+2 DST) → 2024-06-01 07:00:00 UTC
+        $berlin = new \DateTimeImmutable('2024-06-01 09:00:00', new \DateTimeZone('Europe/Berlin'));
+        $this->ripples->revenue(29.99, 'u1', [], $berlin);
+        $this->ripples->flush();
+
+        $this->assertSame('2024-06-01T07:00:00Z', $this->lastEvents()[0]['$sent_at']);
+    }
+
+    public function testRevenueSignupIdentifyAllAcceptTimestamp(): void
+    {
+        $t = new \DateTimeImmutable('2023-01-01T00:00:00Z');
+        $this->ripples->revenue(10.0, 'u1', [], $t);
+        $this->ripples->signup('u1', [], $t);
+        $this->ripples->identify('u1', [], $t);
+        $this->ripples->flush();
+
+        $events = $this->lastEvents();
+        $this->assertSame('2023-01-01T00:00:00Z', $events[0]['$sent_at']);
+        $this->assertSame('2023-01-01T00:00:00Z', $events[1]['$sent_at']);
+        $this->assertSame('2023-01-01T00:00:00Z', $events[2]['$sent_at']);
+    }
+
+    public function testSubscriptionAcceptsTimestamp(): void
+    {
+        $t = new \DateTimeImmutable('2024-02-14T15:30:00Z');
+        $this->ripples->subscription('sub_1', 'u1', 'active', 29.0, 'month', [], $t);
+        $this->ripples->flush();
+
+        $this->assertSame('2024-02-14T15:30:00Z', $this->lastEvents()[0]['$sent_at']);
+    }
+
+    public function testBackfillLoopAcrossAutoFlushBoundary(): void
+    {
+        $r = new FakeRipples('priv_test_key', ['max_queue_size' => 10]);
+        for ($i = 0; $i < 25; $i++) {
+            $ts = new \DateTimeImmutable("2024-01-01T00:00:00Z +{$i} days");
+            $r->track('did a thing', "u{$i}", [], $ts);
+        }
+        $r->flush();
+
+        // 25 events → three batches of 10, 10, 5 (last via explicit flush).
+        $this->assertCount(3, $r->batches);
+        $all = array_merge(
+            $r->batches[0]['data']['events'],
+            $r->batches[1]['data']['events'],
+            $r->batches[2]['data']['events'],
+        );
+        $this->assertCount(25, $all);
+        $this->assertSame('2024-01-01T00:00:00Z', $all[0]['$sent_at']);
+        $this->assertSame('2024-01-25T00:00:00Z', $all[24]['$sent_at']);
+    }
 }

@@ -129,6 +129,24 @@ $ripples->identify('user_123', [
 ]);
 ```
 
+## Backfill historical events
+
+Pass a `DateTimeInterface` as the last argument to any tracking method to override the event's timestamp — useful when importing from a CSV, replaying from another analytics tool, or catching up after an outage.
+
+```php
+foreach ($csvRows as $row) {
+    $ripples->track(
+        $row['action'],
+        $row['user_id'],
+        ['area' => $row['area']],
+        new DateTimeImmutable($row['occurred_at']), // any tz — converted to UTC
+    );
+}
+$ripples->flush(); // guarantee delivery at end of script
+```
+
+Naive behavior (no timestamp passed) uses "now" in UTC. Non-UTC timezones are converted automatically.
+
 ## Error handling
 
 ```php

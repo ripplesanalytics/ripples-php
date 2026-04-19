@@ -4,6 +4,8 @@ namespace Ripples;
 
 class Ripples
 {
+    private const SDK_NAME = 'php';
+
     protected string $secretKey;
     protected string $baseUrl;
     protected int $timeout;
@@ -14,6 +16,7 @@ class Ripples
     /** @var list<array<string, mixed>> */
     private array $queue = [];
     private int $maxQueueSize;
+    private string $sdkVersion;
 
     public function __construct(?string $secretKey = null, array $options = [])
     {
@@ -28,6 +31,8 @@ class Ripples
             throw new RipplesException('Missing secret key. Set RIPPLES_SECRET_KEY in your .env or pass it to the constructor.');
         }
 
+        $this->sdkVersion = $this->resolveSdkVersion();
+
         // In PHP-FPM the runtime calls fastcgi_finish_request() before running
         // shutdown functions, so the HTTP response has already been sent to the
         // client by the time the batch is delivered to Ripples — zero latency
@@ -40,20 +45,24 @@ class Ripples
      *
      * At least one of user_id, email, or visitor_id is required.
      * Any extra keys become custom properties automatically.
+     *
+     * Pass $timestamp to backfill a historical event; omit for "now".
      */
-    public function revenue(float $amount, string $userId, array $attributes = []): void
+    public function revenue(float $amount, string $userId, array $attributes = [], ?\DateTimeInterface $timestamp = null): void
     {
-        $this->enqueue('revenue', ['amount' => $amount, 'user_id' => $userId, ...$attributes]);
+        $this->enqueue('revenue', [...$attributes, '$amount' => $amount, '$user_id' => $userId], $timestamp);
     }
 
     /**
      * Track a signup.
      *
      * Any extra keys beyond the known fields become custom properties automatically.
+     *
+     * Pass $timestamp to backfill a historical event; omit for "now".
      */
-    public function signup(string $userId, array $attributes = []): void
+    public function signup(string $userId, array $attributes = [], ?\DateTimeInterface $timestamp = null): void
     {
-        $this->enqueue('signup', ['user_id' => $userId, ...$attributes]);
+        $this->enqueue('signup', [...$attributes, '$user_id' => $userId], $timestamp);
     }
 
     /**
@@ -69,10 +78,20 @@ class Ripples
      *
      * Pass 'area' in attributes to group actions into product areas.
      * Pass 'activated' => true to mark this specific occurrence as the activation moment.
+     * Pass $timestamp to backfill a historical event; omit for "now".
      */
-    public function track(string $actionName, string $userId, array $attributes = []): void
+    public function track(string $actionName, string $userId, array $attributes = [], ?\DateTimeInterface $timestamp = null): void
     {
-        $this->enqueue('track', ['name' => $actionName, 'user_id' => $userId, ...$attributes]);
+        $sys = ['$name' => $actionName, '$user_id' => $userId];
+        if (isset($attributes['area'])) {
+            $sys['$area'] = $attributes['area'];
+            unset($attributes['area']);
+        }
+        if (isset($attributes['activated'])) {
+            $sys['$activated'] = $attributes['activated'];
+            unset($attributes['activated']);
+        }
+        $this->enqueue('track', [...$attributes, ...$sys], $timestamp);
     }
 
     /**
@@ -88,6 +107,7 @@ class Ripples
      * @param float  $amount          Amount per billing cycle (e.g. 29.00), in your currency
      * @param string $interval        Billing interval: month, year, week, day
      * @param array  $attributes      Optional: currency, name/plan, interval_count
+     * @param ?\DateTimeInterface $timestamp  Override event time for backfilling history
      */
     public function subscription(
         string $subscriptionId,
@@ -96,28 +116,32 @@ class Ripples
         float $amount,
         string $interval = 'month',
         array $attributes = [],
+        ?\DateTimeInterface $timestamp = null,
     ): void {
+        $name = $attributes['name'] ?? $attributes['plan'] ?? null;
         $this->enqueue('revenue', array_filter([
-            'amount' => 0,
-            'user_id' => $userId,
+            '$amount' => 0,
+            '$user_id' => $userId,
             'subscription_id' => $subscriptionId,
             'subscription_status' => $status,
             'subscription_amount' => (string) round($amount * 100),
             'billing_interval' => $interval,
             'billing_interval_count' => (string) ($attributes['interval_count'] ?? 1),
             'currency' => $attributes['currency'] ?? null,
-            'name' => $attributes['name'] ?? $attributes['plan'] ?? null,
-        ], fn ($v) => $v !== null));
+            '$name' => $name,
+        ], fn ($v) => $v !== null), $timestamp);
     }
 
     /**
      * Identify a user (set or update traits).
      *
      * Any extra keys beyond the known fields become custom properties automatically.
+     *
+     * Pass $timestamp to backdate the identify event; omit for "now".
      */
-    public function identify(string $userId, array $attributes = []): void
+    public function identify(string $userId, array $attributes = [], ?\DateTimeInterface $timestamp = null): void
     {
-        $this->enqueue('identify', ['user_id' => $userId, ...$attributes]);
+        $this->enqueue('identify', [...$attributes, '$user_id' => $userId], $timestamp);
     }
 
     /**
@@ -143,13 +167,43 @@ class Ripples
     // Internals
     // ------------------------------------------------------------------
 
-    private function enqueue(string $type, array $data): void
+    private function enqueue(string $type, array $data, ?\DateTimeInterface $timestamp = null): void
     {
-        $this->queue[] = ['type' => $type, 'sent_at' => gmdate('Y-m-d\TH:i:s\Z'), ...$data];
+        $sentAt = $timestamp !== null
+            ? (new \DateTimeImmutable('@' . $timestamp->getTimestamp()))->format('Y-m-d\TH:i:s\Z')
+            : gmdate('Y-m-d\TH:i:s\Z');
+
+        $this->queue[] = [
+            ...$data,
+            '$type'        => $type,
+            '$sent_at'     => $sentAt,
+            '$sdk_name'    => self::SDK_NAME,
+            '$sdk_version' => $this->sdkVersion,
+            '$platform'    => 'server',
+        ];
 
         if (\count($this->queue) >= $this->maxQueueSize) {
             $this->flush();
         }
+    }
+
+    /**
+     * Read the installed package version from Composer's runtime metadata,
+     * falling back to "0.0.0" when the SDK is loaded outside Composer.
+     */
+    private function resolveSdkVersion(): string
+    {
+        if (class_exists(\Composer\InstalledVersions::class)) {
+            try {
+                $v = \Composer\InstalledVersions::getPrettyVersion('ripplesanalytics/ripples-php');
+                if (\is_string($v) && $v !== '') {
+                    return \ltrim($v, 'v');
+                }
+            } catch (\Throwable) {
+                // fall through
+            }
+        }
+        return '0.0.0';
     }
 
     /**
